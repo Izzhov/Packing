@@ -22,3 +22,7 @@
 
 # Output Files
 *.txt
+
+# Debug and Release
+Debug
+Release
