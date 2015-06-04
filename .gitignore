@@ -26,3 +26,6 @@
 # Debug and Release
 Debug
 Release
+
+# No Backups
+*~
