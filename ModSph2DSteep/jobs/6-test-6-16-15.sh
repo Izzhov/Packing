@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dirname=6-2D-Packings-6-10-15
+dirname=6-2D-Packings-6-16-15
 
 mkdir ~/Packing/ModSph2DSteep/Cluster/$dirname
 
