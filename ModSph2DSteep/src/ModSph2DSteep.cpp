@@ -12,10 +12,12 @@
 #include <iomanip>
 #include <sstream>
 
+#include <mm.h>
 #include <Torus.h>
 #include <Sphere.h>
 #include <HarmPot.h>
 #include <SteepDesc.h>
+#include <SphereConNet.h>
 
 #include <gsl/gsl_vector.h>
 
@@ -31,19 +33,20 @@ class mo{
 public:
 	template <class P, class B>//potential, box
 	static void post_data(ofstream& dstream, const char * s,
-				P p, B box){
+				P p, B box, SphereConNet cn){
 		remove(s);
 		dstream.open(s);
+		dstream << std::setprecision(8);
 		dstream << "U: " << p.get_U() << "\n";
 		dstream << "L: " << box.get_L() << "\n";
 		dstream << "Packing Fraction: " << box.pack_frac() << "\n";
 		dstream << "Seed: " << box.get_seed() << "\n";
-		//dstream << "Number of Contacts: " << cn.num_contacts() << "\n";
-		//dstream << "Desired # of Contacts: " << cn.desired_contacts() << "\n";
-		//std::vector<int> whfl = cn.which_floaters();
-		//dstream << "Which Floaters: ";
-		//for(unsigned int i=0;i<whfl.size();i++) dstream << whfl.at(i) << " ";
-		//dstream << "\n";
+		dstream << "Number of Contacts: " << cn.num_contacts() << "\n";
+		dstream << "Desired # of Contacts: " << cn.desired_contacts() << "\n";
+		std::vector<int> whfl = cn.which_floaters();
+		dstream << "Which Floaters: ";
+		for(unsigned int i=0;i<whfl.size();i++) dstream << whfl.at(i) << " ";
+		dstream << "\n";
 		for(int i=0; i<box.get_N(); i++){
 			for(int j=0; j<box.get_dim(); j++){
 				dstream << box.get_pos_coord(i,j) << " ";
@@ -55,6 +58,7 @@ public:
 			}
 			dstream << endl;
 		}
+		cn.output_con(dstream);
 		dstream.close();
 	}
 	template <class T>
@@ -91,6 +95,7 @@ public:
 };
 
 int main(int argc, char **argv) {
+
 	po::options_description desc("Allowed options");
 	desc.add_options()
 			("seed", po::value<int>(), "set seed")
@@ -125,18 +130,24 @@ int main(int argc, char **argv) {
 
 	ofstream dstream;
 
-	min.minimize();
+	min.minimize(2);
 
 	cout << box.get_seed() << endl;
+
+	SphereConNet cn(box,true);//will auto remove floaters
 
 	if(vm.count("filename")){
 		string name = vm["filename"].as<string>();
 		const char * charname = name.c_str();
-		mo::post_data(dstream, charname, pot, box);
+		mo::post_data(dstream, charname, pot, box, cn);
 	}
-	else mo::post_data(dstream, "fin_pos.txt", pot, box);
+	else mo::post_data(dstream, "fin_pos.txt", pot, box, cn);
 
-	cout << box.pack_frac() << endl;
+	cout << "Number of Contacts: " << cn.num_contacts() << endl;
+	cout << "Desired Contacts: " << cn.desired_contacts() << endl;
+	cout << "Final Pressure: " << pot.pressure() << endl;
+
+	//cn.print_con();
 
 	return 0;
 }

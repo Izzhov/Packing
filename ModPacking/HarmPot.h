@@ -158,6 +158,17 @@ inline void HarmPot<B>::calc_U_F(int i, int j, int k) {
 	gsl_vector_add(DU[i],f);//adds this force to DU
 	DL-=dudl/L;
 	// TODO add torque rotations stuff
+	if(box.sym()>1){
+		if(box.get_dim()==2){
+			// TODO find new D_u with taun and I
+		}
+		else if(box.sym()==2){//sym==2 but in 3d
+			// TODO find new D_u with tauv and I
+		}
+		else{//sym==3 in 3d
+			// TODO find new D_u and D_v with tauv and Imat
+		}
+	}
 	gsl_vector_free(f);
 }
 
