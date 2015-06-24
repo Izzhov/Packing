@@ -38,6 +38,8 @@ public:
 	//to populate with pre-set locations and sizes
 	Torus(int N, double L, std::vector<std::vector<gsl_vector*> > locsusvs,
 			std::vector<std::vector<gsl_vector*> > fullsizes, int dim);
+	//copy constructor, ndef is because I don't wanna confuse this w the default
+	Torus(Torus<T>& copy, int ndef);
 
 	int sym(){return T::sym(dim);}
 
@@ -59,8 +61,12 @@ public:
 	int get_N(){return N;}
 	double get_L(){return L;}
 	int get_dim(){return dim;}
+	double get_partvol(){return partvol;}
+	Sizes get_sizes(){return ssizes;}
+	TimeRNG01 get_trng(){return trng;}
 
 	double get_r(int i){return shapes[i].get_r();}
+	double get_max_d(int i){return shapes[i].max_d();}
 
 	gsl_vector * get_1_pos(int i){return shapes[i].get_pos();}
 	gsl_vector * get_u(int i){return shapes[i].get_u();}
@@ -71,6 +77,7 @@ public:
 	double get_v_coord(int i, int j){return shapes[i].get_v_coord(j);}
 
 	double R(int i, int j);//distance within which they're overlapping
+	double I(int i);//moment of inertia
 
 	//location r-vec of the force vector
 	gsl_vector * F_loc(int i, int j, int k);
@@ -138,6 +145,32 @@ Torus<T>::Torus(int N, double L, std::vector<std::vector<gsl_vector*> > locsusvs
 		shapes.push_back(nextshape);
 	}
 	for(int i=0; i<N; i++) partvol += shapes[i].volume();
+}
+
+template<class T>
+Torus<T>::Torus(Torus<T>& copy, int ndef){
+	set_N(copy.get_N()); set_L(copy.get_L()); set_dim(copy.get_dim());
+	partvol = copy.get_partvol(); ssizes = copy.get_sizes(); trng = copy.get_trng();
+	std::vector<std::vector<gsl_vector*> > fs = ssizes.get_fullsizes();
+	for(int i=0; i<N; i++){
+		gsl_vector * pos = gsl_vector_alloc(dim);
+		gsl_vector * u = gsl_vector_alloc(dim);
+		gsl_vector * v = gsl_vector_alloc(dim);
+		gsl_vector_memcpy(pos,copy.get_1_pos(i));
+		if(sym()>1) gsl_vector_memcpy(u,copy.get_u(i));
+		if(sym()>2) gsl_vector_memcpy(v,copy.get_v(i));
+		T nextshape;
+		if(sym()==1){T nextshape2(pos,fs[i]); nextshape = nextshape2;}
+		else if(sym()==2){
+			T nextshape2(pos, u, fs[i]);
+			nextshape = nextshape2;
+		}
+		else{//sym==3 in this case
+			T nextshape2(pos,u,v,fs[i]);
+			nextshape = nextshape2;
+		}
+		shapes.push_back(nextshape);
+	}
 }
 
 template<class T>
@@ -210,18 +243,23 @@ double Torus<T>::R(int i, int j){
 }
 
 template<class T>
+double Torus<T>::I(int i){
+	return shapes[i].I();
+}
+
+template<class T>
 gsl_vector * Torus<T>::F_loc(int i, int j, int k){
-	return shapes[i].F_loc(shapes[j],k);
+	return shapes[i].F_loc(shapes[j],k,L);
 }
 
 template<class T>
 gsl_vector * Torus<T>::ell_1_vec(int i, int j, int k){
-	return shapes[i].ell_vec(shapes[j],k);
+	return shapes[i].ell_vec(shapes[j],k,L);
 }
 
 template<class T>
 gsl_vector * Torus<T>::ell_vec(int i, int j, int k){
-	gsl_vector * reld = shapes[i].ell_vec(shapes[j],k);
+	gsl_vector * reld = shapes[i].ell_vec(shapes[j],k,L);
 	for(int i=0; i<dim; i++){
 		gsl_vector_set(reld,i,L*gsl_vector_get(reld,i));
 	}
@@ -230,7 +268,7 @@ gsl_vector * Torus<T>::ell_vec(int i, int j, int k){
 
 template<class T>
 double Torus<T>::ell2(int i, int j, int k) {
-	return L*L*shapes[i].ell2(shapes[j], k);
+	return L*L*shapes[i].ell2(shapes[j], k,L);
 }
 
 template<class T>

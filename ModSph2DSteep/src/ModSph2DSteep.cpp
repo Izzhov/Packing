@@ -18,8 +18,13 @@
 #include <HarmPot.h>
 #include <SteepDesc.h>
 #include <SphereConNet.h>
+#include <SphDynMatHarmOsc.h>
+#include <TimeRNGNormal.h>
+#include <SingleMD.h>
 
 #include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
 
 #include <boost/program_options.hpp>
 
@@ -36,7 +41,7 @@ public:
 				P p, B box, SphereConNet cn){
 		remove(s);
 		dstream.open(s);
-		dstream << std::setprecision(8);
+		dstream << std::setprecision(10);
 		dstream << "U: " << p.get_U() << "\n";
 		dstream << "L: " << box.get_L() << "\n";
 		dstream << "Packing Fraction: " << box.pack_frac() << "\n";
@@ -87,10 +92,10 @@ public:
 	}
 	template<class P, class B>
 	static void post_simp(int i, ofstream& dstream,
-		P p, B box){
+		P p, B box, SphereConNet cn){
 		string s = "pos_" + mo::to_string(i) + ".txt";
 		const char * c = s.c_str();
-		mo::post_data(dstream, c, p, box);
+		mo::post_data(dstream, c, p, box, cn);
 	}
 };
 
@@ -120,7 +125,9 @@ int main(int argc, char **argv) {
 	szs.push_back(sz1); szs.push_back(sz2);
 	wts.push_back(1.0); wts.push_back(1.0);
 	Torus<Sphere> box(N,szs,wts,dim,phi);
-	//1433949739
+	//1434000791 for 6 is null and PF not 8
+	//1434653545
+	//1435088168 for floater (needs 10^-12 to be accurate)
 	if(vm.count("seed")){
 		Torus<Sphere> box2(N,szs,wts,dim,phi,vm["seed"].as<int>());
 		box = box2;
@@ -130,7 +137,7 @@ int main(int argc, char **argv) {
 
 	ofstream dstream;
 
-	min.minimize(2);
+	min.minimize(5);
 
 	cout << box.get_seed() << endl;
 
@@ -142,12 +149,30 @@ int main(int argc, char **argv) {
 		mo::post_data(dstream, charname, pot, box, cn);
 	}
 	else mo::post_data(dstream, "fin_pos.txt", pot, box, cn);
-
+	/*
 	cout << "Number of Contacts: " << cn.num_contacts() << endl;
 	cout << "Desired Contacts: " << cn.desired_contacts() << endl;
 	cout << "Final Pressure: " << pot.pressure() << endl;
 
-	//cn.print_con();
+	SphDynMatHarmOsc sdmho(box,pot,cn);
 
+	remove("dynmat.txt");
+	dstream.open("dynmat.txt");
+	dstream << setprecision(12);
+	for(int i=0; i<12; i++){
+		for(int j=0; j<12; j++){
+			dstream << gsl_matrix_get(sdmho.get_mat(),i,j);
+			if(j<12) dstream << " ";
+		}
+		dstream << endl;
+	}
+
+	TimeRNGNormal trng;
+	SingleMD<HarmPot<Torus<Sphere> >, Torus<Sphere> > smd(box,0.1,trng);
+
+	cout << "all finished." << endl;
+
+	cn.print_con();
+	*/
 	return 0;
 }

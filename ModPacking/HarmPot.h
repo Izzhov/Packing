@@ -20,13 +20,15 @@
 template <class B>//for Box
 class HarmPot {
 private:
-	double del;
+	double del; double delt;
 	double kk; double P;
 	B& box;
 	double U; std::vector<gsl_vector*> DU; //DU is for [0,1) coords
 	std::vector<double> Dtaun; std::vector<gsl_vector*> Dtauv;
 	double DL;
 	std::vector<gsl_vector*> D_u; std::vector<gsl_vector*> D_v;
+
+	double prevU;//for checking by flt-pt error
 public:
 	HarmPot(B& bbox);
 
@@ -37,6 +39,7 @@ public:
 	void set_D_u(int i, int j, double x);
 	void set_D_v(int i, int j, double x);
 
+	double get_kk(){return kk;}
 	double get_P(){return P;}
 	double get_U(){return U;}
 	gsl_vector * get_DU(int i){
@@ -44,6 +47,12 @@ public:
 	}
 	gsl_vector * get_Dtauv(int i){
 		return Dtauv[i];
+	}
+	gsl_vector * get_D_u(int i){
+		return D_u[i];
+	}
+	gsl_vector * get_D_v(int i){
+		return D_v[i];
 	}
 	double get_DU(int i, int j){
 		return gsl_vector_get(DU[i],j);
@@ -80,7 +89,9 @@ public:
 
 template<class B>
 inline HarmPot<B>::HarmPot(B& bbox):box(bbox){
+	prevU = std::pow(10,6);//ain't nothin bigger'n this
 	del = std::pow(10,-6);//for is_done
+	delt = std::pow(10,-2);//for torque
 	kk=1; P=std::pow(10,-4);//default values
 	U=0; DL=0;
 	for(int i=0; i<box.get_N(); i++){
@@ -156,25 +167,37 @@ inline void HarmPot<B>::calc_U_F(int i, int j, int k) {
 	gsl_vector * f = box.ell_vec(i,j,k);//force direction (neg bc deriv)
 	gsl_vector_scale(f,dudl/(L*lijk)); //force magnitude is good for [0,1)
 	gsl_vector_add(DU[i],f);//adds this force to DU
-	DL-=dudl/L;
+	DL-=dudl*lijk/L;
 	// TODO add torque rotations stuff
 	if(box.sym()>1){
+		gsl_vector * floc = box.F_loc(i,j,k);//location of force
 		if(box.get_dim()==2){
-			// TODO find new D_u with taun and I
+			double newtaun=gsl_vector_get(floc,0)*gsl_vector_get(f,1)-
+					gsl_vector_get(floc,1)*gsl_vector_get(f,0);//crossprod
+			Dtaun.at(i)+=newtaun;
+			floc = mm::cross(1,box.get_u(i));//for D_u (see 6-16-15 page 2)
+			gsl_vector_scale(floc,newtaun/box.I(i));
+			gsl_vector_add(D_u[i],floc);
 		}
 		else if(box.sym()==2){//sym==2 but in 3d
-			// TODO find new D_u with tauv and I
+			gsl_vector * newtauv = mm::cross(2,floc,f);
+			gsl_vector_add(Dtauv[i],newtauv);
+			floc = mm::cross(2,newtauv,box.get_u(i));
+			gsl_vector_scale(floc,1.0/box.I(i));
+			gsl_vector_add(D_u[i],floc);
+			gsl_vector_free(newtauv);
 		}
 		else{//sym==3 in 3d
 			// TODO find new D_u and D_v with tauv and Imat
 		}
+		gsl_vector_free(floc);
 	}
 	gsl_vector_free(f);
 }
 
 template<class B>
 inline double HarmPot<B>::dUdl(double lijk, double Rij) {
-	return (kk/Rij)*(1-(lijk/Rij))*lijk;
+	return (kk/Rij)*(1-(lijk/Rij));
 }
 
 template<class B>
@@ -188,8 +211,21 @@ inline bool HarmPot<B>::is_done() {
 			id = false; break;
 		}
 	}
-	// TODO add torque check stuff
-	return (id && -dim*std::pow(L,dim-1)*P<DL && DL<0.5*dim*std::pow(L,dim-1)*P);
+	if(box.sym()>1){
+		for(int i=0; i<N; i++){
+			double torque;
+			if(box.get_dim()==2) torque = Dtaun[i]*Dtaun[i];
+			else gsl_blas_ddot(Dtauv[i],Dtauv[i],&torque);
+			torque = std::sqrt(torque);
+			if(torque >= delt*box.get_max_d(i)*fmr/(2*box.get_r(i))){
+				id=false; break;
+			}
+		}
+	}
+	bool fltpt = U>=prevU;
+	prevU = U;
+	return ((fltpt || id) && pressure()>0.5*P && pressure()<2*P);
+	//(-dim*std::pow(L,dim-1)*P<DL && DL<0.5*dim*std::pow(L,dim-1)*P)
 }
 
 template<class B>

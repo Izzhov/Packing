@@ -48,13 +48,13 @@ double Sphere::volume() {
 	else return (4.0/3.0)*M_PI*r*r*r;
 }
 
-gsl_vector * Sphere::ell_vec(Sphere s, int k){
+gsl_vector * Sphere::ell_vec(Sphere s, int k, double L){
 	return mm::rel(pos,s.get_pos(),k);
 }
 
-double Sphere::ell2(Sphere s, int k) {
+double Sphere::ell2(Sphere s, int k, double L) {
 	double dd;//the distance
-	gsl_vector * reld = ell_vec(s,k);
+	gsl_vector * reld = ell_vec(s,k,L);
 	gsl_blas_ddot(reld,reld,&dd);
 	gsl_vector_free(reld);
 	return dd;
@@ -62,3 +62,19 @@ double Sphere::ell2(Sphere s, int k) {
 
 void Sphere::normalize() {
 }
+
+double Sphere::max_d() {
+}
+
+gsl_vector* Sphere::get_u() {
+}
+
+gsl_vector* Sphere::get_v() {
+}
+
+double Sphere::I() {
+}
+
+gsl_vector * Sphere::F_loc(Sphere s, int k, double L) {
+}
+

@@ -39,11 +39,16 @@ public:
 
 	double volume();//volume or area depending on dimension
 
-	gsl_vector * ell_vec(Sphere s, int k);
-	double ell2(Sphere s, int k);//dist btwn in k-th quadrant (see 6-8-15)
+	gsl_vector * ell_vec(Sphere s, int k, double L);
+	double ell2(Sphere s, int k, double L);//dist btwn in k-th quadrant (see 6-8-15)
 
 	//does nothing for spheres
 	void normalize();
+	double max_d();
+	gsl_vector * get_u();
+	gsl_vector * get_v();
+	double I();
+	gsl_vector * F_loc(Sphere s, int k, double L);
 };
 
 #endif /* SPHERE_H_ */

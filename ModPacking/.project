@@ -3,6 +3,7 @@
 	<name>ModPacking</name>
 	<comment></comment>
 	<projects>
+		<project>NumDiff</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

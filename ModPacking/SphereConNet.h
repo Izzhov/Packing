@@ -59,6 +59,11 @@ public:
 	//removes all the floater's contacts
 	void rm(int i);
 
+	//number of contacts on element i
+	int num_contacts(int i);
+	//returns con[i][j][k]
+	int con_elem(int i, int j, int k);
+
 	void print_con();//prints contacts to terminal
 	void output_con(std::ofstream& dstream);//makes a file with all the pairs of points for the contacts
 

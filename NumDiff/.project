@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>ModSph2DSteep</name>
+	<name>NumDiff</name>
 	<comment></comment>
 	<projects>
-		<project>ModPacking</project>
-		<project>NumDiff</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

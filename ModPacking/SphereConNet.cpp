@@ -165,6 +165,14 @@ void SphereConNet::rm(int i) {
 	}
 }
 
+int SphereConNet::num_contacts(int i){
+	return con[i].size();
+}
+
+int SphereConNet::con_elem(int i, int j, int k){
+	return con[i][j][k];
+}
+
 void SphereConNet::print_con(){
 	for(int i=0; i<box.get_N(); i++){
 		std::cout << i << ": ";

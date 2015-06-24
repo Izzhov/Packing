@@ -1,4 +1,4 @@
-CPPFLAGS=-O3 -Wall -c -fmessage-length=0 -lgsl -lgslcblas
+CPPFLAGS= -I"../../NumDiff" -O3 -Wall -c -fmessage-length=0 -lgsl -lgslcblas
 
 objects = HarmPot.o mm.o Sizes.o Sphere.o SphereConNet.o SteepDesc.o TimeRNG01.o Torus.o
 

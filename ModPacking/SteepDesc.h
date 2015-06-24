@@ -8,6 +8,12 @@
 #ifndef STEEPDESC_H_
 #define STEEPDESC_H_
 
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <iomanip>
+#include <sstream>
+
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_blas.h>
 
@@ -34,7 +40,7 @@ public:
 template<class P, class B>
 inline SteepDesc<P, B>::SteepDesc(P& ppot, B& bbox):pot(ppot),box(bbox){
 	eps=0.1;
-	for(int b=-4; b>-14; b=b-2){
+	for(int b=-4; b>-20; b=b-2){
 		press.push_back(std::pow(10,b));
 	}
 }
@@ -44,8 +50,12 @@ inline void SteepDesc<P, B>::minimize() {
 	int i=0;
 	while(true){
 		next(); i++;
-		if(i%1000==0) if(pot.is_done()) break;
+		if(i%1000==0){
+			if(pot.is_done()) break;
+			if(i>=10000000) break;
+		}
 	}
+	std::cout << i << std::endl;
 }
 
 template<class P, class B>
@@ -79,7 +89,16 @@ inline void SteepDesc<P, B>::translate() {
 }
 
 template<class P, class B>
-inline void SteepDesc<P, B>::rotate() {// TODO write this method
+inline void SteepDesc<P, B>::rotate() {
+	for(int i=0; i<box.get_N(); i++){
+		gsl_vector_scale(pot.get_D_u(i),eps);
+		gsl_vector_sub(box.get_u(i),pot.get_D_u(i));
+		if(box.sym()==3){
+			gsl_vector_scale(pot.get_D_v(i),eps);
+			gsl_vector_sub(box.get_v(i),pot.get_D_v(i));
+		}
+		box.normalize(i);
+	}
 }
 
 #endif /* STEEPDESC_H_ */

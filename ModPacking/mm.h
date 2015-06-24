@@ -54,6 +54,10 @@ public:
 		else if(x==0) return 0;
 		else return -1;
 	}
+	static double sign(double a, double b){
+		if (b>=0) return std::abs(a);
+		else return -std::abs(a);
+	}
 	static double det_get(gsl_matrix * A, int inPlace){
 		/*
 		 * inPlace == 1 => A is replaced with the LU decomposed copy.
@@ -99,6 +103,31 @@ public:
 		}
 		gsl_matrix_free(A);
 		return crossprod;
+	}
+	static gsl_vector* perp_3(gsl_vector * toperp, int i){
+		if(i==1){
+			gsl_vector * z = gsl_vector_calloc(3);
+			gsl_vector_set(z,2,1);
+			double dotprod; gsl_blas_ddot(toperp,z,&dotprod);
+			if(1-(dotprod*dotprod)<std::pow(10,-8)){
+				gsl_vector_set(z,2,0); gsl_vector_set(z,0,1);//change z to x
+				return z;
+			}
+			else{
+				gsl_vector * crossprod = cross(2,z,toperp);
+				gsl_vector_free(z);
+				return crossprod;
+			}
+		}
+		else{
+			gsl_vector * perp3 = perp_3(toperp,1);
+			gsl_vector * crossprod = cross(2,toperp,perp3);
+			gsl_vector_free(perp3);
+			return crossprod;
+		}
+	}
+	static void normalize(gsl_vector * tonorm){
+		gsl_vector_scale(tonorm,(1.0)/gsl_blas_dnrm2(tonorm));
 	}
 };
 
