@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
 	cout << "Final Pressure: " << pot.pressure() << endl;
 	cout << box.ell2(0,2,0) << endl;
 	*/
-	dstream.open("aspect_data", ofstream::out | ofstream::app);
+	dstream.open("aspect_data.txt", ofstream::out | ofstream::app);
 	dstream << box.get_seed() << " " << box.get_shape(0).get_a();
 	dstream << " " << cn.num_contacts() << " " << fltt << endl;
 	dstream.close();
