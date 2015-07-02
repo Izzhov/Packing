@@ -90,13 +90,14 @@ gsl_vector * Spherocyl::lisljs(Spherocyl s, int k, double L){
 	double ujrij; gsl_blas_ddot(s.get_u(),rij,&ujrij);
 	if((1-uiuj*uiuj)<std::pow(10,-8)){//then spherocyls are parallel
 		if(std::abs(uirij)>(li+lj)/2.0){//force only applied in one place
-			lis = mm::sgn(uirij)*li/2.0; ljs = mm::sgn(ujrij)*lj/2.0;
+			lis = mm::sgn(uirij)*li/2.0; ljs = mm::sgn(-ujrij)*lj/2.0;
 		}
 		else{//force applied in middle of 2 forcends (see6-16-15 page 2 for algo)
+			//see 7-1-15 for correction (ujrij -> -ujrij)
 			double posi = std::min(li/2.0,uirij+lj/2.0);
 			double negi = std::max(-li/2.0,uirij-lj/2.0);
-			double posj = std::min(lj/2.0,ujrij+li/2.0);
-			double negj = std::max(-lj/2.0,ujrij-li/2.0);
+			double posj = std::min(lj/2.0,-ujrij+li/2.0);
+			double negj = std::max(-lj/2.0,-ujrij-li/2.0);
 			lis = (posi+negi)/2.0; ljs = (posj+negj)/2.0;
 		}
 	}
@@ -120,19 +121,44 @@ gsl_vector * Spherocyl::lisljs(Spherocyl s, int k, double L){
 		}
 	}
 	gsl_vector_set(thels,0,lis); gsl_vector_set(thels,1,ljs);
+	gsl_vector_free(rij);
 	return thels;
 }
 
 gsl_vector* Spherocyl::F_loc(Spherocyl s, int k, double L) {
+	gsl_vector * floc = gsl_vector_alloc(pos->size);
+	gsl_vector * thels = lisljs(s,k,L);
+	double li = gsl_vector_get(thels,0);
+	gsl_vector_memcpy(floc,get_u()); gsl_vector_scale(floc,li);
+	gsl_vector_free(thels);
+	return floc;
 }
 
 gsl_vector* Spherocyl::ell_vec(Spherocyl s, int k, double L) {
+	gsl_vector * rij = mm::rel(pos,s.get_pos(),k);
+	gsl_vector * uu = gsl_vector_alloc(rij->size);
+	gsl_vector * thels = lisljs(s,k,L);
+	double li = gsl_vector_get(thels,0); double lj = gsl_vector_get(thels,1);
+	gsl_vector_memcpy(uu,get_u()); gsl_vector_scale(uu,-li/L);
+	gsl_vector_add(rij,uu);
+	gsl_vector_memcpy(uu,s.get_u()); gsl_vector_scale(uu,lj/L);
+	gsl_vector_add(rij,uu);
+	gsl_vector_free(uu); gsl_vector_free(thels);
+	return rij;
 }
 
 double Spherocyl::ell2(Spherocyl s, int k, double L) {
+	double dd;//the distance
+	gsl_vector * reld = ell_vec(s,k,L);
+	gsl_blas_ddot(reld,reld,&dd);
+	gsl_vector_free(reld);
+	return dd;
 }
 
 void Spherocyl::normalize() {
 	double unorm = gsl_blas_dnrm2(u);
 	gsl_vector_scale(u,1.0/unorm);
+}
+
+gsl_vector* Spherocyl::get_v() {
 }

@@ -76,6 +76,8 @@ public:
 	double get_u_coord(int i, int j){return shapes[i].get_u_coord(j);}
 	double get_v_coord(int i, int j){return shapes[i].get_v_coord(j);}
 
+	T get_shape(int i){return shapes[i];}
+
 	double R(int i, int j);//distance within which they're overlapping
 	double I(int i);//moment of inertia
 

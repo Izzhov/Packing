@@ -11,6 +11,7 @@
 #include "mm.h"
 
 #include <gsl/gsl_vector.h>
+#include <gsl/gsl_linalg.h>
 #include <gsl/gsl_blas.h>
 
 #include <cmath>
@@ -52,11 +53,15 @@ public:
 
 	gsl_vector * lisljs(Spherocyl s, int k, double L);//finds lis and ljs from algorithm
 	gsl_vector * F_loc(Spherocyl s, int k, double L);//place at which force is applied
-	gsl_vector * ell_vec(Spherocyl s, int k, double L);
+	gsl_vector * ell_vec(Spherocyl s, int k, double L);//in [0,1) space
+	//also in [0,1) space
 	double ell2(Spherocyl s, int k, double L);//dist btwn in k-th quadrant (see 6-8-15)
 
 	//sets u to magnitude 1
 	void normalize();
+
+	//does nothing for spherocyls
+	gsl_vector * get_v();
 };
 
 #endif /* SPHEROCYL_H_ */

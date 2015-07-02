@@ -29,6 +29,7 @@ private:
 	std::vector<gsl_vector*> D_u; std::vector<gsl_vector*> D_v;
 
 	double prevU;//for checking by flt-pt error
+	double prevU2;
 public:
 	HarmPot(B& bbox);
 
@@ -84,12 +85,15 @@ public:
 	//assumes particle sizes are of similar order
 	//assumes number of contacts is of order N
 
+	bool is_float(); //check if is_done came from fltpt
+
 	double pressure();//calculates pressure
 };
 
 template<class B>
 inline HarmPot<B>::HarmPot(B& bbox):box(bbox){
 	prevU = std::pow(10,6);//ain't nothin bigger'n this
+	prevU2 = std::pow(10,8);
 	del = std::pow(10,-6);//for is_done
 	delt = std::pow(10,-2);//for torque
 	kk=1; P=std::pow(10,-4);//default values
@@ -157,7 +161,8 @@ inline void HarmPot<B>::calc_U_F() {
 template<class B>
 inline void HarmPot<B>::calc_U_F(int i, int j, int k) {
 	if(i==j) return;
-	double Rij = box.R(i,j); double lijk2 = box.ell2(i,j,k);
+	double Rij = box.R(i,j);
+	double lijk2 = box.ell2(i,j,k);
 	if(lijk2>(Rij*Rij)) return;
 	double lijk = sqrt(lijk2);
 	if(i<j){//store energy
@@ -175,17 +180,18 @@ inline void HarmPot<B>::calc_U_F(int i, int j, int k) {
 			double newtaun=gsl_vector_get(floc,0)*gsl_vector_get(f,1)-
 					gsl_vector_get(floc,1)*gsl_vector_get(f,0);//crossprod
 			Dtaun.at(i)+=newtaun;
-			floc = mm::cross(1,box.get_u(i));//for D_u (see 6-16-15 page 2)
-			gsl_vector_scale(floc,newtaun/box.I(i));
-			gsl_vector_add(D_u[i],floc);
+			gsl_vector * cloc = mm::cross(1,box.get_u(i));//for D_u (see 6-16-15 page 2)
+			gsl_vector_scale(cloc,newtaun/box.I(i));
+			gsl_vector_add(D_u[i],cloc);
+			gsl_vector_free(cloc);
 		}
 		else if(box.sym()==2){//sym==2 but in 3d
 			gsl_vector * newtauv = mm::cross(2,floc,f);
 			gsl_vector_add(Dtauv[i],newtauv);
-			floc = mm::cross(2,newtauv,box.get_u(i));
-			gsl_vector_scale(floc,1.0/box.I(i));
-			gsl_vector_add(D_u[i],floc);
-			gsl_vector_free(newtauv);
+			gsl_vector * cloc = mm::cross(2,newtauv,box.get_u(i));
+			gsl_vector_scale(cloc,1.0/box.I(i));
+			gsl_vector_add(D_u[i],cloc);
+			gsl_vector_free(newtauv); gsl_vector_free(cloc);
 		}
 		else{//sym==3 in 3d
 			// TODO find new D_u and D_v with tauv and Imat
@@ -223,9 +229,14 @@ inline bool HarmPot<B>::is_done() {
 		}
 	}
 	bool fltpt = U>=prevU;
-	prevU = U;
+	prevU2 = prevU; prevU = U;
 	return ((fltpt || id) && pressure()>0.5*P && pressure()<2*P);
 	//(-dim*std::pow(L,dim-1)*P<DL && DL<0.5*dim*std::pow(L,dim-1)*P)
+}
+
+template<class B>
+inline bool HarmPot<B>::is_float() {
+	return prevU>=prevU2;
 }
 
 template<class B>

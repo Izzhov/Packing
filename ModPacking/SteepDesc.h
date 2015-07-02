@@ -31,6 +31,7 @@ public:
 	SteepDesc(P& ppot, B& bbox);
 	void minimize();
 	void minimize(int n);//minimizes at successively smaller pressures
+	bool exp_minimize(int n);//minimizes with P=10^(-4)*0.9^i, i<n
 	void next();
 	void move();
 	void translate();
@@ -52,10 +53,12 @@ inline void SteepDesc<P, B>::minimize() {
 		next(); i++;
 		if(i%1000==0){
 			if(pot.is_done()) break;
-			if(i>=10000000) break;
+			if(i>=1000000) break;
 		}
 	}
-	std::cout << i << std::endl;
+	if(i>2000){
+		std::cout << i << " " << "flt: " << pot.is_float() << std::endl;
+	}
 }
 
 template<class P, class B>
@@ -64,6 +67,15 @@ inline void SteepDesc<P, B>::minimize(int n) {
 		pot.set_P(press[i]);
 		minimize();
 	}
+}
+
+template<class P, class B>
+inline bool SteepDesc<P, B>::exp_minimize(int n){
+	for(int i=0; i<n; i++){
+		minimize();
+		pot.set_P(pot.get_P()*0.9);
+	}
+	return pot.is_float();
 }
 
 template<class P, class B>

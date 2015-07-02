@@ -76,5 +76,7 @@ double Sphere::I() {
 }
 
 gsl_vector * Sphere::F_loc(Sphere s, int k, double L) {
+	gsl_vector * floc = gsl_vector_calloc(pos->size);
+	return floc;
 }
 
