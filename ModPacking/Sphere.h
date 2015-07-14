@@ -28,6 +28,7 @@ public:
 	Sphere(gsl_vector * pos, gsl_vector * u, gsl_vector * v, std::vector<gsl_vector*> size);
 
 	static int sym(int dim){return 1;}//sphere doesn't need rotation vecs
+	static int ncon(int dim){return 1;}//# of possible pts of contact
 
 	void set_pos(gsl_vector * pos);
 	void set_r(double r);
@@ -38,9 +39,15 @@ public:
 	double get_pos_coord(int i);
 
 	double volume();//volume or area depending on dimension
+	double lsl();//longest shape length
 
-	gsl_vector * ell_vec(Sphere s, int k, double L);
-	double ell2(Sphere s, int k, double L);//dist btwn in k-th quadrant (see 6-8-15)
+	gsl_vector * ell_vec(Sphere s, int k, double L, int ncon);
+	double ell2(Sphere s, int k, double L, int ncon);//dist btwn in k-th quadrant (see 6-8-15)
+	//quadrantless:
+	gsl_vector * ell_vec(Sphere s, double L, int ncon);
+	double ell2(Sphere s, double L, int ncon);
+
+	bool touch(Sphere s, double L);
 
 	//does nothing for spheres
 	void normalize();
@@ -48,7 +55,8 @@ public:
 	gsl_vector * get_u();
 	gsl_vector * get_v();
 	double I();
-	gsl_vector * F_loc(Sphere s, int k, double L);
+	gsl_vector * F_loc(Sphere s, int k, double L, int ncon);
+	gsl_vector * F_loc(Sphere s, double L, int ncon);
 };
 
 #endif /* SPHERE_H_ */

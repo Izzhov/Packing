@@ -18,7 +18,7 @@ SphereConNet::SphereConNet(Torus<Sphere>& bbox, bool remove_em):box(bbox){
 				else j++;//move on to the next one if not done
 			}
 			for(int k=1; k<=mm::int_pow(2,box.get_dim());k++){
-				if(std::sqrt(box.ell2(i,j,k))<=box.R(i,j)){//this means they're touchin
+				if(std::sqrt(box.ell2(i,j,k,0))<=box.R(i,j)){//this means they're touchin
 					std::vector<int> touch;
 					touch.push_back(j); touch.push_back(k);
 					con.at(i).push_back(touch);
@@ -36,7 +36,7 @@ SphereConNet::SphereConNet(Torus<Sphere>& bbox, bool remove_em):box(bbox){
 			std::vector<gsl_vector*> A;//initialize vector of ctr-ctr vex
 			//find&store the vec for each contact
 			for(unsigned int j=0; j<con.at(i).size(); j++){
-				gsl_vector * B = box.ell_vec(i,con[i][j][0],con[i][j][1]);
+				gsl_vector * B = box.ell_vec(i,con[i][j][0],con[i][j][1],0);
 				//note this vector points *away* from the particle
 				A.push_back(B);//add this to the vector of vex
 			}
@@ -178,7 +178,7 @@ void SphereConNet::print_con(){
 		std::cout << i << ": ";
 		for(int j=0;j<con.at(i).size();j++){
 			std::cout << con[i][j][0] << "," << con[i][j][1] << ",";
-			std::cout << std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1]))-
+			std::cout << std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1],0))-
 					box.R(i,con[i][j][0])<< ";";
 		}
 		std::cout << "\n";
@@ -195,9 +195,9 @@ void SphereConNet::output_con(std::ofstream& dstream) {//assumes the stream is a
 				gsl_vector * firstloc = gsl_vector_alloc(box.get_dim());
 				gsl_vector_memcpy(firstloc,box.get_1_pos(i));
 				gsl_vector_scale(firstloc,box.get_L());
-				gsl_vector * secondloc = box.ell_vec(i,con[i][j][0],con[i][j][1]);
+				gsl_vector * secondloc = box.ell_vec(i,con[i][j][0],con[i][j][1],0);
 				gsl_vector_add(secondloc,firstloc);
-				overlap = std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1]))-
+				overlap = std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1],0))-
 						box.R(i,con[i][j][0]);
 				frac = box.get_r(i)/box.R(i,con[i][j][0]);
 				for(int k=0; k<box.get_dim(); k++)

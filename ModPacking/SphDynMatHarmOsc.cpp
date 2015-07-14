@@ -43,7 +43,7 @@ void SphDynMatHarmOsc::calc_mat() {
 				//set R value
 				overR.set_var(1.0/box.R(i,cn.con_elem(i,j,0)));
 				//get xj,yj,(zj)
-				gsl_vector * ellvec = box.ell_vec(i,cn.con_elem(i,j,0),cn.con_elem(i,j,1));
+				gsl_vector * ellvec = box.ell_vec(i,cn.con_elem(i,j,0),cn.con_elem(i,j,1),cn.con_elem(i,j,2));
 				for(int d=0; d<box.get_dim(); d++){//put these values into the last 3 coords
 					coords[d+box.get_dim()].set_var(gsl_vector_get(ellvec,d));
 				}

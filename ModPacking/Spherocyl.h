@@ -30,6 +30,7 @@ public:
 	Spherocyl(gsl_vector * pos, gsl_vector * u, gsl_vector * v, std::vector<gsl_vector*> size);//blank
 
 	static int sym(int dim){return 2;}//always has 1 rot. vec
+	static int ncon(int dim){return 1;}//# of possible pts of contact
 
 	void set_pos(gsl_vector * pos);
 	void set_u(gsl_vector * u);
@@ -50,12 +51,20 @@ public:
 	double volume();//volume or area depending on dimension
 	double I();//moment of inertia
 	double max_d();//largest distance from center that force can be applied
+	double lsl();//longest shape length
 
 	gsl_vector * lisljs(Spherocyl s, int k, double L);//finds lis and ljs from algorithm
-	gsl_vector * F_loc(Spherocyl s, int k, double L);//place at which force is applied
-	gsl_vector * ell_vec(Spherocyl s, int k, double L);//in [0,1) space
+	gsl_vector * F_loc(Spherocyl s, int k, double L, int ncon);//place at which force is applied
+	gsl_vector * ell_vec(Spherocyl s, int k, double L, int ncon);//in [0,1) space
 	//also in [0,1) space
-	double ell2(Spherocyl s, int k, double L);//dist btwn in k-th quadrant (see 6-8-15)
+	double ell2(Spherocyl s, int k, double L, int ncon);//dist btwn in k-th quadrant (see 6-8-15)
+	//quadrantless versions:
+	gsl_vector * lisljs(Spherocyl s, double L);
+	gsl_vector * F_loc(Spherocyl s, double L, int ncon);
+	gsl_vector * ell_vec(Spherocyl s, double L, int ncon);
+	double ell2(Spherocyl s, double L, int ncon);
+
+	bool touch(Spherocyl s, double L);//check if they touch
 
 	//sets u to magnitude 1
 	void normalize();

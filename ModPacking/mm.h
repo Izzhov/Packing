@@ -8,13 +8,14 @@
 #ifndef MM_H_
 #define MM_H_
 
-#include <cmath>
-
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_blas.h>
 #include <stdarg.h>
+
+#include <cmath>
+#include <algorithm>
 
 class mm {
 public:
@@ -42,6 +43,19 @@ public:
 		}
 		return result;
 	}
+	//finds the shortest vector on the [0,1) torus btwn 2 pts
+	static gsl_vector* rel(const gsl_vector* v1, const gsl_vector* v2){
+		gsl_vector* result = gsl_vector_alloc(v1->size);
+		double coord;//coordinate
+
+		for(unsigned int i=0; i<(v1->size); i++){
+			coord = gsl_vector_get(v2,i)-gsl_vector_get(v1,i)-
+					(std::abs(gsl_vector_get(v2,i)-gsl_vector_get(v1,i))>=0.5)*
+					sgn(gsl_vector_get(v2,i)-gsl_vector_get(v1,i));
+			gsl_vector_set(result,i,coord);
+		}
+		return result;
+	}
 	//checks if 2 vectors are antiparallel
 	static bool antiparallel(const gsl_vector* v1, const gsl_vector* v2){
 		double normprod = gsl_blas_dnrm2(v1)*gsl_blas_dnrm2(v2);
@@ -57,6 +71,10 @@ public:
 	static double sign(double a, double b){
 		if (b>=0) return std::abs(a);
 		else return -std::abs(a);
+	}
+	static double minmag(double a, double b, double c){
+		if(a>=0) return std::min(b,c);
+		else return std::max(b,c);
 	}
 	static double det_get(gsl_matrix * A, int inPlace){
 		/*

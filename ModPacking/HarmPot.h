@@ -8,6 +8,12 @@
 #ifndef HARMPOT_H_
 #define HARMPOT_H_
 
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <iomanip>
+#include <sstream>
+
 #include "Torus.h"
 #include "mm.h"
 
@@ -39,6 +45,7 @@ public:
 	void set_Dtauv(int i, int j, double x);
 	void set_D_u(int i, int j, double x);
 	void set_D_v(int i, int j, double x);
+	void set_DL(double newDL){DL = newDL;}
 
 	double get_kk(){return kk;}
 	double get_P(){return P;}
@@ -75,7 +82,8 @@ public:
 	//calculates energy and fills relevant variables
 	//note these are *positive* derivatives
 	void calc_U_F();
-	void calc_U_F(int i, int j, int k);
+	void calc_U_F(int i, int j, int k, int ncon);
+	void calc_U_F(int i, int j, int ncon);
 	double dUdl(double lijk, double Rij);
 
 	bool is_done(); //check if the total force is < d*avg_f
@@ -93,7 +101,7 @@ public:
 template<class B>
 inline HarmPot<B>::HarmPot(B& bbox):box(bbox){
 	prevU = std::pow(10,6);//ain't nothin bigger'n this
-	prevU2 = std::pow(10,8);
+	prevU2 = std::pow(10,8);//except this
 	del = std::pow(10,-6);//for is_done
 	delt = std::pow(10,-2);//for torque
 	kk=1; P=std::pow(10,-4);//default values
@@ -145,6 +153,7 @@ inline void HarmPot<B>::set_D_v(int i, int j, double x){
 
 template<class B>
 inline void HarmPot<B>::calc_U_F() {
+	bool usequadrants=(box.get_L()<=2*box.lsl(box.get_lslmax()));
 	double L = box.get_L(); int dim = box.get_dim();
 	U = P*std::pow(L,dim); DL = dim*P*std::pow(L,dim-1);
 	for(int i=0; i<box.get_N(); i++){
@@ -153,29 +162,78 @@ inline void HarmPot<B>::calc_U_F() {
 			set_DU(i,d,0); set_Dtauv(i,d,0);
 			set_D_u(i,d,0); set_D_v(i,d,0);
 		}
-		for(int j=0; j<box.get_N(); j++)
-			for(int k=1; k<=mm::int_pow(2,dim);k++) calc_U_F(i,j,k);
+		for(int j=0; j<box.get_N(); j++){
+			if(usequadrants)
+				for(int k=1; k<=mm::int_pow(2,dim);k++)
+					for(int ncon=0; ncon<box.ncon(); ncon++)
+						calc_U_F(i,j,k,ncon);
+			else for(int ncon=0; ncon<box.ncon(); ncon++)
+				calc_U_F(i,j,ncon);
+		}
 	}
 }
 
 template<class B>
-inline void HarmPot<B>::calc_U_F(int i, int j, int k) {
+inline void HarmPot<B>::calc_U_F(int i, int j, int k, int ncon) {
 	if(i==j) return;
 	double Rij = box.R(i,j);
-	double lijk2 = box.ell2(i,j,k);
+	double lijk2 = box.ell2(i,j,k,ncon);
 	if(lijk2>(Rij*Rij)) return;
 	double lijk = sqrt(lijk2);
 	if(i<j){//store energy
 		U+=0.5*kk*(1-(lijk/Rij))*(1-(lijk/Rij));
 	}
 	double dudl = dUdl(lijk, Rij); double L = box.get_L();
-	gsl_vector * f = box.ell_vec(i,j,k);//force direction (neg bc deriv)
+	gsl_vector * f = box.ell_vec(i,j,k,ncon);//force direction (neg bc deriv)
 	gsl_vector_scale(f,dudl/(L*lijk)); //force magnitude is good for [0,1)
 	gsl_vector_add(DU[i],f);//adds this force to DU
 	DL-=dudl*lijk/L;
 	// TODO add torque rotations stuff
 	if(box.sym()>1){
-		gsl_vector * floc = box.F_loc(i,j,k);//location of force
+		gsl_vector * floc = box.F_loc(i,j,k,ncon);//location of force
+		if(box.get_dim()==2){
+			double newtaun=gsl_vector_get(floc,0)*gsl_vector_get(f,1)-
+					gsl_vector_get(floc,1)*gsl_vector_get(f,0);//crossprod
+			Dtaun.at(i)+=newtaun;
+			gsl_vector * cloc = mm::cross(1,box.get_u(i));//for D_u (see 6-16-15 page 2)
+			gsl_vector_scale(cloc,newtaun/box.I(i));
+			gsl_vector_add(D_u[i],cloc);
+			gsl_vector_free(cloc);
+		}
+		else if(box.sym()==2){//sym==2 but in 3d
+			gsl_vector * newtauv = mm::cross(2,floc,f);
+			gsl_vector_add(Dtauv[i],newtauv);
+			gsl_vector * cloc = mm::cross(2,newtauv,box.get_u(i));
+			gsl_vector_scale(cloc,1.0/box.I(i));
+			gsl_vector_add(D_u[i],cloc);
+			gsl_vector_free(newtauv); gsl_vector_free(cloc);
+		}
+		else{//sym==3 in 3d
+			// TODO find new D_u and D_v with tauv and Imat
+		}
+		gsl_vector_free(floc);
+	}
+	gsl_vector_free(f);
+}
+
+template<class B>
+inline void HarmPot<B>::calc_U_F(int i, int j, int ncon) {
+	if(i==j) return;
+	double Rij = box.R(i,j);
+	double lijk2 = box.ell2(i,j,ncon);
+	if(lijk2>(Rij*Rij)) return;
+	double lijk = sqrt(lijk2);
+	if(i<j){//store energy
+		U+=0.5*kk*(1-(lijk/Rij))*(1-(lijk/Rij));
+	}
+	double dudl = dUdl(lijk, Rij); double L = box.get_L();
+	gsl_vector * f = box.ell_vec(i,j,ncon);//force direction (neg bc deriv)
+	gsl_vector_scale(f,dudl/(L*lijk)); //force magnitude is good for [0,1)
+	gsl_vector_add(DU[i],f);//adds this force to DU
+	DL-=dudl*lijk/L;
+	// TODO add torque rotations stuff
+	if(box.sym()>1){
+		gsl_vector * floc = box.F_loc(i,j,ncon);//location of force
 		if(box.get_dim()==2){
 			double newtaun=gsl_vector_get(floc,0)*gsl_vector_get(f,1)-
 					gsl_vector_get(floc,1)*gsl_vector_get(f,0);//crossprod
@@ -209,7 +267,8 @@ inline double HarmPot<B>::dUdl(double lijk, double Rij) {
 template<class B>
 inline bool HarmPot<B>::is_done() {
 	bool id = true; int N = box.get_N(); int dim = box.get_dim();
-	double L = box.get_L(); double fmr = (del*P*dim*std::pow(L,dim))/(double)N;
+	double L = box.get_L();
+	double fmr = (del*P*dim*std::pow(L,dim))/(double)N;
 	for(int i=0; i<N; i++){
 		double force; gsl_blas_ddot(DU[i],DU[i],&force);
 		force = std::sqrt(force);

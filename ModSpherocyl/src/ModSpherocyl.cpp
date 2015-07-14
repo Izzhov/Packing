@@ -16,11 +16,18 @@
 #include <mm.h>
 #include <Torus.h>
 #include <Spherocyl.h>
+#include <SpherocylDOF.h>
 #include <HarmPot.h>
+#include <HarmPotNbrList.h>
 #include <SteepDesc.h>
+#include <SteepDescAdapt.h>
+#include <SecSteepDesc.h>
+#include <FullSecSteepDesc.h>
 #include <TimeRNGNormal.h>
 #include <SingleMD.h>
 #include <MultiMD.h>
+
+#include "CompareHPs.h"
 
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
@@ -129,35 +136,33 @@ public:
 int main(int argc, char **argv) {
 	/*testing the distance algo
 	//# particles, sizes, weights, dim, and init. packing frac
-	int N=2; int dim=2; double L=10.0;
+	int N=2; int dim=2; double L=6.487363085;
 	vector<vector<gsl_vector*> > szs;
 	vector<vector<gsl_vector*> > locs;
 	gsl_vector * r1 = gsl_vector_alloc(1); gsl_vector_set(r1,0,1);
 	gsl_vector * r2 = gsl_vector_alloc(1); gsl_vector_set(r2,0,1);
-	gsl_vector * a1 = gsl_vector_alloc(1); gsl_vector_set(a1,0,2);
-	gsl_vector * a2 = gsl_vector_alloc(1); gsl_vector_set(a2,0,2);
+	gsl_vector * a1 = gsl_vector_alloc(1); gsl_vector_set(a1,0,1.2);
+	gsl_vector * a2 = gsl_vector_alloc(1); gsl_vector_set(a2,0,1.2);
 	vector<gsl_vector*> s1; s1.push_back(r1); s1.push_back(a1);
 	vector<gsl_vector*> s2; s2.push_back(r2); s2.push_back(a2);
 	szs.push_back(s1); szs.push_back(s2);
 	gsl_vector * l1 = gsl_vector_alloc(dim);
-	gsl_vector_set(l1,0,0.5); gsl_vector_set(l1,1,0.5);
+	gsl_vector_set(l1,0,0.3430112694); gsl_vector_set(l1,1,0.3047892792);
 	gsl_vector * u1 = gsl_vector_alloc(dim);
-	gsl_vector_set(u1,0,1); gsl_vector_set(u1,1,0);
+	gsl_vector_set(u1,0,0.6358887663); gsl_vector_set(u1,1,0.7717807181);
 	gsl_vector * l2 = gsl_vector_alloc(dim);
-	gsl_vector_set(l2,0,0.7); gsl_vector_set(l2,1,0.6);
+	gsl_vector_set(l2,0,0.08472802131); gsl_vector_set(l2,1,0.4786794158);
 	gsl_vector * u2 = gsl_vector_alloc(dim);
-	gsl_vector_set(u2,0,0); gsl_vector_set(u2,1,1);
+	gsl_vector_set(u2,0,0.6756162572); gsl_vector_set(u2,1,0.737253466);
 	vector<gsl_vector*> loc1; loc1.push_back(l1); loc1.push_back(u1);
 	vector<gsl_vector*> loc2; loc2.push_back(l2); loc2.push_back(u2);
 	locs.push_back(loc1); locs.push_back(loc2);
-	Torus<Spherocyl> box(N,L,locs,szs,dim);
-	HarmPot<Torus<Spherocyl> > pot(box);
-	SteepDesc<HarmPot<Torus<Spherocyl> >, Torus<Spherocyl> > min(pot, box);
-	min.next();
-	cout << box.get_1_pos_coord(0,0) << " " << box.get_1_pos_coord(0,1) << endl;
-	cout << box.get_u_coord(0,0) << " " << box.get_u_coord(0,1) << endl;
-	cout << box.get_1_pos_coord(1,0) << " " << box.get_1_pos_coord(1,1) << endl;
-	cout << box.get_u_coord(1,0) << " " << box.get_u_coord(1,1) << endl;
+	Torus<SpherocylDOF> box(N,L,locs,szs,dim);
+	cout << setprecision(12);
+	cout << std::sqrt(box.ell2(0,1,1,0)) << endl;
+	cout << std::sqrt(box.ell2(0,1,1,1)) << endl;
+	ConNet<Torus<SpherocylDOF> > cn(box);
+	cn.print_con();
 	*/
 
 	po::options_description desc("Allowed options");
@@ -191,39 +196,50 @@ int main(int argc, char **argv) {
 	sz2.push_back(r2); sz2.push_back(a2);
 	szs.push_back(sz1); szs.push_back(sz2);
 	wts.push_back(1.0); wts.push_back(1.0);
-	Torus<Spherocyl> box(N,szs,wts,dim,phi);
+	Torus<SpherocylDOF> box(N,szs,wts,dim,phi);
+	//Torus<SpherocylDOF> box2(N,szs,wts,dim,phi,1435762516);
+	//1433971798 000@3.3 (wha happun?)
+	//1433972169,1433972110 (some 3.3's)
 	//1435762516 new bidi1 (oldbidi3)
 	//1435691590 doesn't seem stable (turns out I was missing one)
 	if(vm.count("seed")){
-		Torus<Spherocyl> box2(N,szs,wts,dim,phi,vm["seed"].as<int>());
+		Torus<SpherocylDOF> box2(N,szs,wts,dim,phi,vm["seed"].as<int>());
 		box = box2;
 	}
-	HarmPot<Torus<Spherocyl> > pot(box);
-	SteepDesc<HarmPot<Torus<Spherocyl> >, Torus<Spherocyl> > min(pot, box);
+	HarmPot<Torus<SpherocylDOF> > pot(box);
+	//HarmPotNbrList<Torus<SpherocylDOF>,SpherocylDOF > pot2(box2);
+	FullSecSteepDesc<HarmPot<Torus<SpherocylDOF> >, Torus<SpherocylDOF> > min(pot, box);
+	//SecSteepDesc<HarmPotNbrList<Torus<SpherocylDOF>,SpherocylDOF >, Torus<SpherocylDOF> > min2(pot2, box2);
+	//CompareHPs min(pot,box,pot2,box2);
 
 	ofstream dstream;
 
-	bool fltt = min.exp_minimize(10);
+	bool fltt = min.exp_minimize(7);
+	//bool fltt2 = min2.minimize();
+	//bool fltt = false;
 
-	//cout << box.get_seed() << endl;
+	cout << box.get_seed() << endl;
 
 	//cout << "PackFrac: " << box.pack_frac() << endl;
 
-	ConNet<Torus<Spherocyl> > cn(box);
+	ConNet<Torus<SpherocylDOF> > cn(box);
+	//ConNet<Torus<SpherocylDOF> > cn2(box2);
 	if(vm.count("filename")){
 		string name = vm["filename"].as<string>();
 		const char * charname = name.c_str();
 		mo::post_data(dstream, charname, pot, box,cn);
 	}
-	/*
 	else mo::post_data(dstream, "fin_pos.txt", pot, box,cn);
+	//mo::post_data(dstream, "fin_pos2.txt", pot2, box2,cn2);
+
 
 	cout << "Final Pressure: " << pot.pressure() << endl;
-	cout << box.ell2(0,2,0) << endl;
-	*/
 	dstream.open("aspect_data.txt", ofstream::out | ofstream::app);
 	dstream << box.get_seed() << " " << box.get_shape(0).get_a();
-	dstream << " " << cn.num_contacts() << " " << fltt << endl;
+	dstream << " " << cn.num_contacts() << " " << fltt << " ";
+	dstream << min.eps_reached() << endl;
 	dstream.close();
+
+	//cn.print_con();
 	return 0;
 }

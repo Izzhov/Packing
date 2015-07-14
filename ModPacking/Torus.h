@@ -28,6 +28,7 @@ private:
 	std::vector<T> shapes;
 	double partvol;
 	int dim;//dimension of torus
+	int lslmax;//index of particle with highest lsl
 public:
 	Torus();
 	Torus(int N, std::vector<std::vector<gsl_vector*> > szs,
@@ -42,11 +43,15 @@ public:
 	Torus(Torus<T>& copy, int ndef);
 
 	int sym(){return T::sym(dim);}
+	int ncon(){return T::ncon(dim);}
 
 	int get_seed(){return trng.get_seed();}
 
 	//populates randomly
-	void populate();
+	void populate(double phi);
+	//check if any touch -> if so, repopulate
+	//precondition: must have already populated once
+	bool anytouch();
 
 	void find_set_L(double phi);
 
@@ -62,11 +67,13 @@ public:
 	double get_L(){return L;}
 	int get_dim(){return dim;}
 	double get_partvol(){return partvol;}
+	int get_lslmax(){return lslmax;}
 	Sizes get_sizes(){return ssizes;}
 	TimeRNG01 get_trng(){return trng;}
 
 	double get_r(int i){return shapes[i].get_r();}
 	double get_max_d(int i){return shapes[i].max_d();}
+	double lsl(int i){return shapes[i].lsl();}
 
 	gsl_vector * get_1_pos(int i){return shapes[i].get_pos();}
 	gsl_vector * get_u(int i){return shapes[i].get_u();}
@@ -77,17 +84,23 @@ public:
 	double get_v_coord(int i, int j){return shapes[i].get_v_coord(j);}
 
 	T get_shape(int i){return shapes[i];}
+	T * get_shape_ptr(int i){return &shapes[i];}
 
 	double R(int i, int j);//distance within which they're overlapping
 	double I(int i);//moment of inertia
 
 	//location r-vec of the force vector
-	gsl_vector * F_loc(int i, int j, int k);
+	gsl_vector * F_loc(int i, int j, int k, int ncon);
 	//returns in [0,1) space
-	gsl_vector * ell_1_vec(int i, int j, int k);
+	gsl_vector * ell_1_vec(int i, int j, int k, int ncon);
 	//returns in [0,L) space, is the direction of the force vector
-	gsl_vector * ell_vec(int i, int j, int k);
-	double ell2(int i, int j, int k);
+	gsl_vector * ell_vec(int i, int j, int k, int ncon);
+	double ell2(int i, int j, int k, int ncon);
+	//quadrantless versions:
+	gsl_vector * F_loc(int i, int j, int ncon);
+	gsl_vector * ell_1_vec(int i, int j, int ncon);
+	gsl_vector * ell_vec(int i, int j, int ncon);
+	double ell2(int i, int j, int ncon);
 
 	//packing faction
 	double pack_frac();
@@ -101,34 +114,30 @@ public:
 
 template<class T>
 Torus<T>::Torus() {
-	N=0;L=1;partvol=0;dim=1;
+	N=0;L=1;lslmax=0;partvol=0;dim=1;
 }
 
 template<class T>
 Torus<T>::Torus(int N, std::vector<std::vector<gsl_vector*> > szs,
 		std::vector<double> wts, int dim, double phi) {
-	partvol=0; set_N(N); set_dim(dim);
+	lslmax = 0; partvol=0; set_N(N); set_dim(dim);
 	Sizes newssizes(N, szs, wts); ssizes = newssizes;
-	populate();
-	for(int i=0; i<N; i++) partvol += shapes[i].volume();
-	find_set_L(phi);
+	populate(phi);
 }
 
 template<class T>
 Torus<T>::Torus(int N, std::vector<std::vector<gsl_vector*> > szs,
 		std::vector<double> wts, int dim, double phi, int seed) {
 	TimeRNG01 newtrng(seed); trng = newtrng;
-	partvol=0; set_N(N); set_dim(dim);
+	lslmax = 0; partvol=0; set_N(N); set_dim(dim);
 	Sizes newssizes(N, szs, wts); ssizes = newssizes;
-	populate();
-	for(int i=0; i<N; i++) partvol += shapes[i].volume();
-	find_set_L(phi);
+	populate(phi);
 }
 
 template<class T>
 Torus<T>::Torus(int N, double L, std::vector<std::vector<gsl_vector*> > locsusvs,
 		std::vector<std::vector<gsl_vector*> > fullsizes, int dim){
-	partvol=0; set_N(N); set_dim(dim); set_L(L);
+	lslmax = 0; partvol=0; set_N(N); set_dim(dim); set_L(L);
 	for(int i=0; i<N; i++){
 		T nextshape;
 		if(sym()==1){
@@ -146,13 +155,16 @@ Torus<T>::Torus(int N, double L, std::vector<std::vector<gsl_vector*> > locsusvs
 		}
 		shapes.push_back(nextshape);
 	}
-	for(int i=0; i<N; i++) partvol += shapes[i].volume();
+	for(int i=0; i<N; i++){
+		partvol += shapes[i].volume();
+		if(shapes[i].lsl()>shapes[lslmax].lsl()) lslmax=i;
+	}
 }
 
 template<class T>
 Torus<T>::Torus(Torus<T>& copy, int ndef){
 	set_N(copy.get_N()); set_L(copy.get_L()); set_dim(copy.get_dim());
-	partvol = copy.get_partvol(); ssizes = copy.get_sizes(); trng = copy.get_trng();
+	lslmax=copy.get_lslmax(); partvol = copy.get_partvol(); ssizes = copy.get_sizes(); trng = copy.get_trng();
 	std::vector<std::vector<gsl_vector*> > fs = ssizes.get_fullsizes();
 	for(int i=0; i<N; i++){
 		gsl_vector * pos = gsl_vector_alloc(dim);
@@ -176,7 +188,8 @@ Torus<T>::Torus(Torus<T>& copy, int ndef){
 }
 
 template<class T>
-void Torus<T>::populate() {
+void Torus<T>::populate(double phi) {
+	lslmax=0; partvol=0;
 	std::vector<std::vector<gsl_vector*> > fs = ssizes.get_fullsizes();
 	for(int i=0; i<N; i++){
 		gsl_vector * pos = gsl_vector_alloc(dim);
@@ -201,6 +214,29 @@ void Torus<T>::populate() {
 		}
 		shapes.push_back(nextshape);
 	}
+	for(int i=0; i<N; i++){
+		partvol += shapes[i].volume();
+		if(shapes[i].lsl()>shapes[lslmax].lsl()) lslmax=i;
+	}
+	find_set_L(phi);
+	if(anytouch()){shapes.clear(); populate(phi);}
+}
+
+template<class T>
+bool Torus<T>::anytouch(){
+	bool dotheytouch = false;
+	for(int i=0; i<N; i++){
+		for(int j=0; j<N; j++){
+			if(i==j){ //can't touch itself
+				if(i==(get_N()-1)) break;//this means we're done
+				else j++;//move on to the next one if not done
+			}
+			if(shapes[i].touch(shapes[j],L)){
+				dotheytouch=true;
+			}
+		}
+	}
+	return dotheytouch;
 }
 
 template<class T>
@@ -250,18 +286,18 @@ double Torus<T>::I(int i){
 }
 
 template<class T>
-gsl_vector * Torus<T>::F_loc(int i, int j, int k){
-	return shapes[i].F_loc(shapes[j],k,L);
+gsl_vector * Torus<T>::F_loc(int i, int j, int k, int ncon){
+	return shapes[i].F_loc(shapes[j],k,L,ncon);
 }
 
 template<class T>
-gsl_vector * Torus<T>::ell_1_vec(int i, int j, int k){
-	return shapes[i].ell_vec(shapes[j],k,L);
+gsl_vector * Torus<T>::ell_1_vec(int i, int j, int k, int ncon){
+	return shapes[i].ell_vec(shapes[j],k,L,ncon);
 }
 
 template<class T>
-gsl_vector * Torus<T>::ell_vec(int i, int j, int k){
-	gsl_vector * reld = shapes[i].ell_vec(shapes[j],k,L);
+gsl_vector * Torus<T>::ell_vec(int i, int j, int k, int ncon){
+	gsl_vector * reld = shapes[i].ell_vec(shapes[j],k,L,ncon);
 	for(int i=0; i<dim; i++){
 		gsl_vector_set(reld,i,L*gsl_vector_get(reld,i));
 	}
@@ -269,8 +305,32 @@ gsl_vector * Torus<T>::ell_vec(int i, int j, int k){
 }
 
 template<class T>
-double Torus<T>::ell2(int i, int j, int k) {
-	return L*L*shapes[i].ell2(shapes[j], k,L);
+double Torus<T>::ell2(int i, int j, int k, int ncon) {
+	return L*L*shapes[i].ell2(shapes[j], k,L,ncon);
+}
+
+template<class T>
+gsl_vector * Torus<T>::F_loc(int i, int j, int ncon){
+	return shapes[i].F_loc(shapes[j],L,ncon);
+}
+
+template<class T>
+gsl_vector * Torus<T>::ell_1_vec(int i, int j, int ncon){
+	return shapes[i].ell_vec(shapes[j],L,ncon);
+}
+
+template<class T>
+gsl_vector * Torus<T>::ell_vec(int i, int j, int ncon){
+	gsl_vector * reld = shapes[i].ell_vec(shapes[j],L,ncon);
+	for(int i=0; i<dim; i++){
+		gsl_vector_set(reld,i,L*gsl_vector_get(reld,i));
+	}
+	return reld;
+}
+
+template<class T>
+double Torus<T>::ell2(int i, int j, int ncon) {
+	return L*L*shapes[i].ell2(shapes[j], L,ncon);
 }
 
 template<class T>

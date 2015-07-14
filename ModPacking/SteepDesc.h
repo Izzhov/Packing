@@ -23,7 +23,7 @@
 template <class P, class B>//P is potential, B is box
 class SteepDesc {
 private:
-	double eps;
+	double eps; double epsL;
 	std::vector<double> press;
 	P& pot;
 	B& box;
@@ -40,7 +40,7 @@ public:
 
 template<class P, class B>
 inline SteepDesc<P, B>::SteepDesc(P& ppot, B& bbox):pot(ppot),box(bbox){
-	eps=0.1;
+	eps=0.1; epsL=0.1;
 	for(int b=-4; b>-20; b=b-2){
 		press.push_back(std::pow(10,b));
 	}
@@ -53,7 +53,7 @@ inline void SteepDesc<P, B>::minimize() {
 		next(); i++;
 		if(i%1000==0){
 			if(pot.is_done()) break;
-			if(i>=1000000) break;
+			if(i>=100000) break;
 		}
 	}
 	if(i>2000){
@@ -97,7 +97,7 @@ inline void SteepDesc<P, B>::translate() {
 		gsl_vector_sub(box.get_1_pos(i),pot.get_DU(i));
 		box.modify(i);//makes it all mod 1
 	}
-	box.set_L(L-eps*DL);
+	box.set_L(L-epsL*DL);
 }
 
 template<class P, class B>

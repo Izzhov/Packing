@@ -60,10 +60,14 @@ inline ConNet<B>::ConNet(B& bbox):box(bbox){
 				else j++;//move on to the next one if not done
 			}
 			for(int k=1; k<=mm::int_pow(2,box.get_dim());k++){
-				if(std::sqrt(box.ell2(i,j,k))<=box.R(i,j)){//this means they're touchin
-					std::vector<int> touch;
-					touch.push_back(j); touch.push_back(k);
-					con.at(i).push_back(touch);
+				for(int ncon=0; ncon<box.ncon(); ncon++){
+					if(std::sqrt(box.ell2(i,j,k,ncon))<=box.R(i,j)){
+						//this means they're touchin
+						std::vector<int> touch;
+						touch.push_back(j); touch.push_back(k);
+						touch.push_back(ncon);
+						con.at(i).push_back(touch);
+					}
 				}
 			}
 		}
@@ -78,7 +82,8 @@ inline ConNet<B>::ConNet(B& bbox):box(bbox){
 			std::vector<gsl_vector*> A;//initialize vector of floc-floc vex
 			//find&store the vec for each contact
 			for(unsigned int j=0; j<con.at(i).size(); j++){
-				gsl_vector * G = box.ell_vec(i,con[i][j][0],con[i][j][1]);
+				gsl_vector * G =
+						box.ell_vec(i,con[i][j][0],con[i][j][1],con[i][j][2]);
 				//note this vector points *away* from the particle
 				A.push_back(G);//add this to the vector of vex
 			}
@@ -112,7 +117,8 @@ inline void ConNet<B>::print_con() {
 		std::cout << i << ": ";
 		for(int j=0;j<con.at(i).size();j++){
 			std::cout << con[i][j][0] << "," << con[i][j][1] << ",";
-			std::cout << std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1]))-
+			std::cout << con[i][j][2] << ",";
+			std::cout << std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1],con[i][j][2]))-
 					box.R(i,con[i][j][0])<< ";";
 		}
 		std::cout << "\n";
@@ -130,10 +136,10 @@ inline void ConNet<B>::output_con(std::ofstream& dstream) {//assumes the stream 
 				gsl_vector * firstloc = gsl_vector_alloc(box.get_dim());
 				gsl_vector_memcpy(firstloc,box.get_1_pos(i));
 				gsl_vector_scale(firstloc,box.get_L());
-				gsl_vector_add(firstloc,box.F_loc(i,con[i][j][0],con[i][j][1]));
-				gsl_vector * secondloc = box.ell_vec(i,con[i][j][0],con[i][j][1]);
+				gsl_vector_add(firstloc,box.F_loc(i,con[i][j][0],con[i][j][1],con[i][j][2]));
+				gsl_vector * secondloc = box.ell_vec(i,con[i][j][0],con[i][j][1],con[i][j][2]);
 				gsl_vector_add(secondloc,firstloc);
-				overlap = std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1]))-
+				overlap = std::sqrt(box.ell2(i,con[i][j][0],con[i][j][1],con[i][j][2]))-
 						box.R(i,con[i][j][0]);
 				frac = box.get_r(i)/box.R(i,con[i][j][0]);
 				for(int k=0; k<box.get_dim(); k++)
