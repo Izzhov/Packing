@@ -8,7 +8,7 @@ for k in $(seq 3); do
 for j in $(seq 9); do
 for i in $(seq 1000); do
     a=$(( (k-1)*10000+(j-1)*1000+(i-1) ))
-    b=$(( ("$1"-1)*1500 ))
+    b=$(( ($1 - 1)*1500 ))
     c=$((b+1500))
     if [ "$a" -ge "$b" ]; then
     if [ "$a" -lt "$c" ]; then
@@ -19,7 +19,7 @@ done
 done
 for i in $(seq 1000); do
     a=$(( k*10000+(i-1) ))
-    b=$(( ("$1"-1)*1500 ))
+    b=$(( ($1 - 1)*1500 ))
     c=$((b+1500))
     if [ "$a" -ge "$b" ]; then
     if [ "$a" -lt "$c" ]; then
