@@ -8,6 +8,12 @@
 #ifndef MM_H_
 #define MM_H_
 
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
+#include <iomanip>
+#include <sstream>
+
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
@@ -146,6 +152,13 @@ public:
 	}
 	static void normalize(gsl_vector * tonorm){
 		gsl_vector_scale(tonorm,(1.0)/gsl_blas_dnrm2(tonorm));
+	}
+	//for making nice tables
+	template<typename T>
+	static void print_element(T t, int width){
+		std::cout << std::setprecision(width-3);
+		std::cout << std::left << std::setw(width) << std::setfill(' ') << t;
+		std::cout << " ";
 	}
 };
 

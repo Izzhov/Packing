@@ -26,6 +26,7 @@
 #include <TimeRNGNormal.h>
 #include <SingleMD.h>
 #include <MultiMD.h>
+#include <SimplexFltr.h>
 
 #include "CompareHPs.h"
 
@@ -241,5 +242,33 @@ int main(int argc, char **argv) {
 	dstream.close();
 
 	//cn.print_con();
+
+	/*testing simplexfltr
+	int d=3; int sym=2;
+	vector<gsl_vector*> fis; vector<gsl_vector*> flocs;
+	gsl_vector * v1 = gsl_vector_alloc(2);
+	gsl_vector_set(v1,0,1); gsl_vector_set(v1,1,-1);
+	gsl_vector * v2 = gsl_vector_alloc(2);
+	gsl_vector_set(v2,0,-3); gsl_vector_set(v2,1,-1);
+	gsl_vector * v3 = gsl_vector_alloc(2);
+	gsl_vector_set(v3,0,0); gsl_vector_set(v3,1,1);
+	gsl_vector * v4 = gsl_vector_alloc(2);
+	gsl_vector_set(v4,0,0); gsl_vector_set(v4,1,1);
+	fis.push_back(v1); fis.push_back(v2);
+	fis.push_back(v3); fis.push_back(v4);
+	gsl_vector * w1 = gsl_vector_alloc(2);
+	gsl_vector_set(w1,0,-2); gsl_vector_set(w1,1,0);
+	gsl_vector * w2 = gsl_vector_alloc(2);
+	gsl_vector_set(w2,0,2); gsl_vector_set(w2,1,0);
+	gsl_vector * w3 = gsl_vector_alloc(2);
+	gsl_vector_set(w3,0,2); gsl_vector_set(w3,1,0);
+	gsl_vector * w4 = gsl_vector_alloc(2);
+	gsl_vector_set(w4,0,-2); gsl_vector_set(w4,1,0);
+	flocs.push_back(w1); flocs.push_back(w2);
+	flocs.push_back(w3); flocs.push_back(w4);
+	SimplexFltr flt_test(fis,flocs,d,sym);
+	bool isit = flt_test.is_floater();
+	std::cout << isit << std::endl;
+	*/
 	return 0;
 }

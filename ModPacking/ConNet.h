@@ -147,7 +147,8 @@ inline void ConNet<B>::output_con(std::ofstream& dstream) {//assumes the stream 
 				for(int k=0; k<box.get_dim(); k++)
 					dstream << gsl_vector_get(secondloc,k) << " ";
 				dstream << overlap << " " << frac << " ";
-				dstream << number << "\n"; number++;
+				dstream << number << " " << i << " " << con[i][j][0] << "\n";
+				number++;
 				gsl_vector_free(firstloc); gsl_vector_free(secondloc);
 			}
 		}
